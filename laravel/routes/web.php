@@ -20,6 +20,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
     Route::get('/media/search', [MediaItemController::class, 'search'])->name('media.search');
     Route::get('/media/{item}/edit', [MediaItemController::class, 'edit'])->name('media.edit');
     Route::put('/media/{item}', [MediaItemController::class, 'update'])->name('media.update');
+    Route::delete('/media/{item}', [MediaItemController::class, 'destroy'])->name('media.destroy');
 
     Route::get('/users', [\App\Http\Controllers\Admin\UserController::class, 'index'])->name('users.index');
     Route::post('/users', [\App\Http\Controllers\Admin\UserController::class, 'store'])->name('users.store');

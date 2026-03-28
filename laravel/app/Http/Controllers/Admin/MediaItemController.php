@@ -18,7 +18,7 @@ class MediaItemController extends Controller
         $this->tmdb = $tmdb;
     }
 
-    public function index(Library $library, MediaItem $parent = null)
+    public function index(Library $library, ?MediaItem $parent = null)
     {
         $query = $library->mediaItems();
         if ($parent) {
@@ -44,7 +44,7 @@ class MediaItemController extends Controller
         return response()->json($results);
     }
 
-    public function store(Request $request, Library $library, MediaItem $parent = null)
+    public function store(Request $request, Library $library, ?MediaItem $parent = null)
     {
         $tmdb_id = $request->input('tmdb_id');
         $type = $request->input('type'); // movie or series or season or episode
@@ -63,20 +63,6 @@ class MediaItemController extends Controller
                 'poster_path' => $details['poster_path'],
                 'backdrop_path' => $details['backdrop_path'],
             ]);
-        } else {
-            $details = $this->tmdb->getTvDetails($tmdb_id);
-            $item = MediaItem::create([
-                'id' => (string) Str::uuid(),
-                'library_id' => $library->id,
-                'type' => 'series',
-                'name' => $details['name'],
-                'overview' => $details['overview'],
-                'tmdb_id' => $tmdb_id,
-                'production_year' => substr($details['first_air_date'] ?? '', 0, 4),
-                'poster_path' => $details['poster_path'],
-                'backdrop_path' => $details['backdrop_path'],
-            ]);
-            // Logic for seasons and episodes could be added here
         } elseif ($type == 'season') {
             $item = MediaItem::create([
                 'id' => (string) Str::uuid(),
@@ -96,6 +82,58 @@ class MediaItemController extends Controller
                 'index_number' => $request->input('index_number'),
                 'parent_index_number' => $parent->index_number,
             ]);
+        } else {
+            $details = $this->tmdb->getTvDetails($tmdb_id);
+            $item = MediaItem::create([
+                'id' => (string) Str::uuid(),
+                'library_id' => $library->id,
+                'type' => 'series',
+                'name' => $details['name'],
+                'overview' => $details['overview'],
+                'tmdb_id' => $tmdb_id,
+                'production_year' => substr($details['first_air_date'] ?? '', 0, 4),
+                'poster_path' => $details['poster_path'],
+                'backdrop_path' => $details['backdrop_path'],
+            ]);
+
+            // Auto-import seasons and episodes from TMDB
+            $seasons = $details['seasons'] ?? [];
+            foreach ($seasons as $seasonData) {
+                $seasonNumber = $seasonData['season_number'];
+
+                $season = MediaItem::create([
+                    'id' => (string) Str::uuid(),
+                    'library_id' => $library->id,
+                    'parent_id' => $item->id,
+                    'type' => 'season',
+                    'name' => $seasonData['name'] ?? "Season {$seasonNumber}",
+                    'overview' => $seasonData['overview'] ?? null,
+                    'tmdb_id' => $seasonData['id'] ?? null,
+                    'production_year' => substr($seasonData['air_date'] ?? '', 0, 4) ?: null,
+                    'poster_path' => $seasonData['poster_path'] ?? null,
+                    'index_number' => $seasonNumber,
+                ]);
+
+                // Fetch full season details to get episode list
+                $seasonDetails = $this->tmdb->getTvSeasonDetails($tmdb_id, $seasonNumber);
+                $episodes = $seasonDetails['episodes'] ?? [];
+
+                foreach ($episodes as $episodeData) {
+                    MediaItem::create([
+                        'id' => (string) Str::uuid(),
+                        'library_id' => $library->id,
+                        'parent_id' => $season->id,
+                        'type' => 'episode',
+                        'name' => $episodeData['name'] ?? "Episode {$episodeData['episode_number']}",
+                        'overview' => $episodeData['overview'] ?? null,
+                        'tmdb_id' => $episodeData['id'] ?? null,
+                        'production_year' => substr($episodeData['air_date'] ?? '', 0, 4) ?: null,
+                        'poster_path' => $episodeData['still_path'] ?? null,
+                        'index_number' => $episodeData['episode_number'],
+                        'parent_index_number' => $seasonNumber,
+                    ]);
+                }
+            }
         }
 
         return redirect()->back();
@@ -130,5 +168,21 @@ class MediaItemController extends Controller
         }
 
         return redirect()->back()->with('success', 'Media item updated');
+    }
+
+    public function destroy(MediaItem $item)
+    {
+        $this->deleteItemRecursive($item);
+        return redirect()->back()->with('success', 'Item deleted successfully.');
+    }
+
+    private function deleteItemRecursive(MediaItem $item): void
+    {
+        foreach ($item->children as $child) {
+            $this->deleteItemRecursive($child);
+        }
+        $item->mediaSources()->delete();
+        $item->subtitles()->delete();
+        $item->delete();
     }
 }

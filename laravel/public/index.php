@@ -17,4 +17,15 @@ require __DIR__.'/../vendor/autoload.php';
 /** @var Application $app */
 $app = require_once __DIR__.'/../bootstrap/app.php';
 
+// Normalize the request path to lowercase for Jellyfin client compatibility.
+// The Jellyfin SDK sends inconsistent casing (e.g. /Users/authenticatebyname,
+// /System/Info/Public). We lowercase ONLY the path, not the query string,
+// so tokens/IDs remain intact.
+if (isset($_SERVER['REQUEST_URI'])) {
+    $parsed = parse_url($_SERVER['REQUEST_URI']);
+    $lowercasedPath = strtolower($parsed['path'] ?? '/');
+    $query = isset($parsed['query']) ? '?' . $parsed['query'] : '';
+    $_SERVER['REQUEST_URI'] = $lowercasedPath . $query;
+}
+
 $app->handleRequest(Request::capture());

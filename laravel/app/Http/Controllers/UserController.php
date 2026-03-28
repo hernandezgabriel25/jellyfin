@@ -28,6 +28,18 @@ class UserController extends Controller
         ]);
     }
 
+    public function getPublicUsers()
+    {
+        $users = User::all()->map(fn($user) => [
+            'Name' => $user->name,
+            'Id' => $user->uuid,
+            'HasPassword' => true,
+            'EnableAutoLogin' => false,
+        ]);
+
+        return response()->json($users);
+    }
+
     public function getCurrentUser(Request $request)
     {
         return response()->json($this->getUserDto($request->user()));

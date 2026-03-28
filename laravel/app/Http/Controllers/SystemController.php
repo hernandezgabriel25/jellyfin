@@ -10,8 +10,12 @@ class SystemController extends Controller
     {
         return response()->json([
             'Name' => 'Laravel Jellyfin',
-            'Version' => '10.9.0',
+            'Version' => '10.11.0',
             'Id' => 'laravel-server-id',
+            'StartupWizardCompleted' => true,
+            'OperatingSystem' => 'Linux',
+            'CanSelfRestart' => false,
+            'CanLaunchWebBrowser' => false,
         ]);
     }
 
@@ -19,9 +23,10 @@ class SystemController extends Controller
     {
         return response()->json([
             'Name' => 'Laravel Jellyfin',
-            'Version' => '10.9.0',
+            'Version' => '10.11.0',
             'Id' => 'laravel-server-id',
             'LocalAddress' => 'http://localhost:8000',
+            'StartupWizardCompleted' => true,
         ]);
     }
 

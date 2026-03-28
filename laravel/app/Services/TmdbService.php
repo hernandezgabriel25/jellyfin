@@ -60,4 +60,15 @@ class TmdbService
 
         return $response->json();
     }
+
+    public function getTvSeasonDetails($tvId, $seasonNumber)
+    {
+        if (!$this->apiKey) return null;
+
+        $response = Http::get("{$this->baseUrl}/tv/{$tvId}/season/{$seasonNumber}", [
+            'api_key' => $this->apiKey,
+        ]);
+
+        return $response->json();
+    }
 }
